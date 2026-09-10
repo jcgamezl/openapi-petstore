@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "intent.v1.json",
+  "title": "intent.md frontmatter",
+  "description": "Schema for the frontmatter of intent.md, the canonical gating artifact for the plan phase. The gate engine checks only id (must match the ticket), status, cycle, approved_by and approval_evidence; the rest of this schema is what the writer module (jira-intake) produces and what the test suite validates the skill's examples against.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "problem",
+    "proposed_outcome",
+    "affected_systems",
+    "requested_by",
+    "status",
+    "cycle"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Ticket id this intent traces back to, e.g. a Jira key"
+    },
+    "cycle": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Which pass through the loop this intent.md belongs to. Always 1 in this client's phase-graph (no loop-back phase), kept so a phase-graph that does loop doesn't need a schema change \u2014 the gate engine checks this against the project's phase-state.json so a stale intent.md left over from a previous cycle can't silently satisfy a later gate."
+    },
+    "title": {
+      "type": "string"
+    },
+    "problem": {
+      "type": "string",
+      "description": "What's wrong or missing, in the requester's own words"
+    },
+    "proposed_outcome": {
+      "type": "string"
+    },
+    "affected_systems": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Anything the schema wants but the source didn't have. Must be empty, or explicitly waived, before define can close."
+    },
+    "requested_by": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "plan-agent",
+        "jira-intake",
+        "prd-import",
+        "router"
+      ],
+      "description": "Which module filled the plan.intake capability slot for this project"
+    },
+    "prd_source": {
+      "type": "string",
+      "description": "Set only when source is prd-import \u2014 a git ref back to the originating project's spec.md/intent.md"
+    },
+    "epic": {
+      "type": "string",
+      "description": "Parent Jira epic key this ticket was decomposed from, if any (e.g. a client whose own tooling breaks a PRD/RFC into epics and stories in Jira). Absent when the ticket has no parent epic."
+    },
+    "source_docs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Links back to the PRD/RFC (or equivalent) the parent epic was decomposed from, when the epic carries them. Lets Define/Design pull the full product context instead of just this one story's isolated fields \u2014 set by jira-intake when the epic has them, left empty otherwise rather than guessed."
+    },
+    "track": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "fast-track",
+        "emergency"
+      ]
+    },
+    "skip_reason": {
+      "type": "string",
+      "description": "Why define/design were skipped. Required in practice on the fast-track track (phase-graph.yaml's `fast-track.requires: skip_reason`) \u2014 that track goes plan -> develop -> launch, so this frontmatter field is the only place the reason for skipping two gates is ever recorded. Set it from the routed track (start-ticket's output / phase-state.json's `track`), not from a guess. Leave unset on standard, where nothing was skipped."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Required when status is approved"
+    },
+    "approval_evidence": {
+      "type": "string",
+      "description": "Required when status is approved (require_approval_evidence in phase-graph.yaml) \u2014 a link to the Jira comment/Slack message/email where this was actually approved. The product owner approving this rarely has git/GitHub/Cursor/Claude access at all; this is what makes approved_by checkable instead of just a transcribed name."
+    },
+    "approvals": {
+      "type": "array",
+      "description": "One entry per approving role. Only needed when this artifact's gate asks for more than one signature (a quorum or tier strategy in .pdlc/phase-graph.yaml). A single-approver gate keeps using status/approved_by/approval_evidence. Every entry needs its own evidence link when require_approval_evidence is on \u2014 one link does not cover two people.",
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "status"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "The approval role named by this gate in .pdlc/phase-graph.yaml, e.g. product_owner. An entry for a role the gate did not ask for does not count toward it."
+          },
+          "by": {
+            "type": "string",
+            "description": "The person who decided. Required when status is approved."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "declined",
+              "pending"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Link to where this person actually approved or declined \u2014 the Jira comment, Slack message or change record."
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "status": {
+        "const": "approved"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "approved_by",
+      "approval_evidence"
+    ]
+  }
+}

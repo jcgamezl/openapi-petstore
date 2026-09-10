@@ -1,0 +1,288 @@
+# phase-graph.yaml
+#
+# The one file that defines what "the PDLC" means for this client fork.
+# The gate engine treats this as opaque config — it has no built-in idea
+# that "plan" or "launch" are special names, it only sees phases
+# with entry/exit artifacts, and tracks that pick a subset of them.
+#
+# See the architecture plan, sections 02 (Phase taxonomy) and its
+# "Tracks" subsection, for the reasoning behind this shape.
+
+version: 1
+
+# Segregation of duties: PCI-DSS v4.0 Req 6.2.3.1 requires custom code
+# be "reviewed by individuals other than the originating code author...
+# and reviewed and approved by management prior to release." An AI
+# review can inform that decision but can never legally BE it — the
+# approver still has to be a distinct, named human. Off by default
+# (not every client is PCI-scoped); set true for regulated clients.
+# When on, the gate engine rejects approved_by == author on any gated
+# artifact, regardless of what status says — one person cannot hold
+# both requester and approver on the same artifact.
+#
+# DECISION, pilot launch: left OFF for this fork, deliberately, and
+# this is the client's call to make, not the spine's. Their reasoning:
+# the pilot teams are small enough that a builder leader is routinely
+# both the person who asked for a spec and the person qualified to
+# approve it, and turning SoD on before the pilot has produced any
+# real throughput data would block tickets on an availability problem
+# rather than a governance one. What is NOT in question is that the
+# approver is a distinct, named human from the agent — that holds
+# either way, and is what require_approval_evidence below enforces.
+#
+# Flipping this to true is a one-line change and needs no code: the
+# gate engine already implements it and it is covered by tests. The
+# expectation is that it goes on for any PCI-scoped repo before that
+# repo leaves pilot. When it does, the roles table below stops being
+# documentation and starts being enforced — check first that no
+# artifact's author and approver are the same person.
+enforce_segregation_of_duties: false
+
+# Real approvers (product owner, compliance officer, release manager)
+# routinely have no git/GitHub/Cursor/Claude access at all — they
+# approve where they already work (a Jira comment, Slack, email), and
+# an engineer or agent transcribes that into the artifact's frontmatter.
+# Without this, `approved_by: maria` is just a name someone typed —
+# nothing ties it to an actual approval. When on, the gate engine
+# requires a non-empty `approval_evidence` field (a link to the actual
+# Jira comment/Slack message/email) on every approved gated artifact.
+# On for this client — approvals here need to be checkable, not just
+# claimed.
+require_approval_evidence: true
+
+# ---------------------------------------------------------------------
+# APPROVAL ROLES, and what they're called on this client's side.
+#
+# The `approval:` key on each exit artifact below is a system role name.
+# The client's own vocabulary is different, and pilots will hear the
+# client's words, not these — so the mapping is written down here rather
+# than living in someone's head:
+#
+#   product_owner      -> "product definer(s)"  (product owner side)
+#   engineering_lead   -> "builder leader"      (engineering lead)
+#   release_manager    -> in practice the builder leader (see below)
+#   compliance_officer -> the CAB, a committee (see below)
+#
+# Two of those have NO one-to-one counterpart at this client, and
+# saying so here beats letting a pilot discover it at the launch gate:
+#
+#   release_manager    Launch is led by the builder leader, who
+#                      presents the change and gives the go-ahead for
+#                      the deploy itself. This fork routes the role to
+#                      the builder leader until the client names a
+#                      release manager of their own. The KEY stays
+#                      `release_manager` — renaming it would invalidate
+#                      every existing phase-state.json — but nobody
+#                      holds that title here today.
+#   compliance_officer The client's regulatory function is a change
+#                      advisory board: a committee, not a job title.
+#                      The builder leader presents evidence to it and
+#                      the committee approves. So the role is unfilled
+#                      as a person, consistent with compliance-signoff.md
+#                      being required: false below. On a regulated
+#                      ticket, approved_by names whoever signs on the
+#                      committee's behalf and approval_evidence points
+#                      at the committee's own record.
+#
+# "Product builder" is the developer plus the agent doing the work —
+# the drafting side. It is deliberately NOT an approval role anywhere
+# below: the product builder drafts every artifact, and a different
+# named human approves it. That split is the whole point of the gates.
+#
+# That narrowing is THIS FORK'S decision, not the client's definition.
+# In the client's own model the product builder co-signs where user
+# stories are agreed, jointly with a product definer — two signatures
+# on one gate. This spine has no two-approver gate, so the equivalent
+# here is a required technical review of scope.md by the product
+# builder before the product owner approves it: the reviewer's name
+# goes in scope.md's body, the approval stays the product owner's
+# alone. One signature plus a recorded review — not "the builder never
+# signs anything" as the client would hear it.
+#
+# Design QA sits at the LAUNCH gate: the builder leader confirms that
+# what shipped matches the UI/design approved at design. Here that is
+# a line in release.md's `verification` (drafted by pr-review), not a
+# separate artifact.
+#
+# Per phase: who drafts -> who approves.
+#   plan     intent.md            jira-intake       -> product_owner
+#   define   scope.md             scope-writer      -> product_owner
+#   design   spec.md              spec-writer       -> engineering_lead
+#   design   compliance-signoff.md (optional)       -> compliance_officer
+#   develop  plan.md              plan-writer       -> engineering_lead
+#   launch   release.md           pr-review         -> release_manager
+#
+# On the emergency track the order is engineering_lead (plan.md), then
+# release_manager (release.md), then — post hoc, after the fix has
+# already shipped — product_owner on intent.md. The post-hoc approval
+# is still owed; see the `post_hoc` key on that track below.
+#
+# An approval is recorded in the artifact's own frontmatter and needs
+# all three of status: approved, approved_by, and approval_evidence
+# (see require_approval_evidence above). There is no separate approvals
+# database — the artifact is the record.
+# ---------------------------------------------------------------------
+
+# An exit artifact's `approval:` is either a role name — the form every
+# gate below uses — or an object naming a strategy:
+#
+#   approval: product_owner                      # one signature
+#   approval:                                    # two signatures, both needed
+#     strategy: quorum
+#     roles: [product_owner, engineering_lead]
+#   approval:                                    # two of three is enough
+#     strategy: quorum
+#     roles: [a, b, c]
+#     min_approvals: 2
+#   approval:                                    # who signs depends on risk
+#     strategy: tier
+#     tier: R2
+#     role_by_tier: {R1: engineering_lead, R2: compliance_officer}
+#
+# A multi-approver gate's artifact records one `approvals:` entry per
+# role instead of the three scalars, and require_approval_evidence
+# applies to every entry — one link does not cover two people. A gate
+# with some signatures and not all reports as "partial" and names who it
+# is waiting on, so the second approver learns it is their turn.
+#
+# NOTHING BELOW USES THE OBJECT FORM YET, on purpose. Two gates here are
+# plausible quorums when the client decides to turn them on: scope.md,
+# because their own model has the product builder co-signing it with the
+# product definer (this fork expresses that as one signature plus a
+# recorded review — see the roles notes above), and release.md, if the
+# change advisory board's approval is to become a second signature
+# inside the system rather than a record kept in their own process.
+# Either is one edit here; both would also change the team manual, which
+# currently states that no gate takes two signatures.
+
+phases:
+  - id: plan
+    entry_artifact: null            # trigger: ticket, incident, idea, or an imported PRD
+    exit_artifacts:
+      - artifact: intent.md
+        required: true
+        approval: product_owner
+        cycle: current                # this cycle's own intent.md — always cycle 1 now that
+                                        # there's no loop-back phase to seed a next cycle; kept
+                                        # so a client that later adds one back doesn't also need
+                                        # to touch this artifact's declaration
+
+  - id: define
+    entry_artifact: intent.md
+    exit_artifacts:
+      - artifact: scope.md
+        required: true
+        approval: product_owner
+
+  - id: design
+    entry_artifact: scope.md
+    exit_artifacts:
+      - artifact: spec.md
+        required: true
+        approval: engineering_lead
+      - artifact: compliance-signoff.md
+        required: false            # flip to true per client if compliance sign-off is mandatory here
+        approval: compliance_officer
+
+  - id: develop
+    entry_artifact: spec.md
+    exit_artifacts:
+      - artifact: plan.md
+        required: true
+        approval: engineering_lead
+
+  - id: launch
+    entry_artifact: plan.md
+    exit_artifacts:
+      - artifact: release.md
+        required: true
+        approval: release_manager
+    # No measure phase, no loop back to plan — this client's own
+    # observability tooling already produces whatever comes next (a new
+    # incident, a new Jira ticket), and that re-enters normally through
+    # plan/jira-intake like anything else. A ticket's lifecycle here is
+    # bounded: launch clearing is genuinely the end, not a pause before
+    # a loop. See CLAUDE.md for the tradeoff this was weighed against.
+
+tracks:
+  standard:
+    phases: [plan, define, design, develop, launch]
+
+  fast-track:                        # small, well-understood changes
+    phases: [plan, develop, launch]
+    requires: skip_reason            # why define/design were skipped — recorded, not silent
+    escalation:                      # a fast-tracked fix that grew past
+      max_changed_lines: 400          # this scope should re-enter standard/
+      on_exceed: block                # Design, not merge on its original,
+                                        # now-wrong classification (§02)
+
+  emergency:                         # production incident — fix first
+    phases: [develop, launch]
+    post_hoc: [plan]   # documented after the fact, not before
+
+  spike:                             # technical discovery / analysis: the deliverable
+    phases: [plan, design]           # IS the design artifact (spec.md, technical
+                                     # discovery + architecture sections), approved by
+                                     # the engineering lead. No develop, no launch —
+                                     # a spike does not release anything. Its findings
+                                     # feed the story or task opened afterwards.
+
+routing:
+  default: standard
+  # Aligned on 2026-09-07 with the client's REAL Jira vocabulary, from a
+  # 2,861-ticket export across their nine squads (OP, SO, PS, BILLING,
+  # POS, PI, PDC, BT, RECON). Their issue types are Spanish (Historia,
+  # Tarea, Error, Subtarea, Mejora, ...; one project uses Portuguese
+  # "Subtarefa"), and their priorities mix three schemes: "1 - Crítica"
+  # .. "5 - Muy Baja", plain "Crítica"/"Alta"/"Media"/"Baja", and Jira
+  # Cloud's "Highest"/"Lowest". Under the previous rules ('Bug', 'P1')
+  # every one of those 2,861 tickets fell through to `standard`.
+  #
+  # The shape, and why:
+  #   emergency  — a production bug at critical priority, or anything the
+  #                team labels as an incident/hotfix. Fix first, paperwork
+  #                after (plan is post_hoc).
+  #   fast-track — bugs at any other priority (cause and fix understood;
+  #                the client's "bug conocido"), improvements, subtasks,
+  #                and plain tasks (a "Tarea" is execution work under a
+  #                story that already carries the definition). Skips
+  #                define/design; intent.md needs a skip_reason; the
+  #                400-line escalation catches the ones that grow.
+  #   standard   — user stories (Historia) and everything not matched:
+  #                the full plan -> define -> design -> develop -> launch.
+  #
+  #   spike      — discovery / analysis / spike / design issues. The
+  #                deliverable is spec.md (technical discovery and the
+  #                architecture sections), approved by the engineering
+  #                lead; no develop, no launch.
+  #   Test Case, QA certification, Revisión and operational tasks are
+  #   fast-track: unit-test-writer / e2e-testing / code-review / security
+  #   do the work, the PR carries it, release.md records the verification.
+  #
+  # Only an Epic is refused at start-ticket (routing.reject): it is a
+  # container, not something a developer resolves. Start one of its
+  # stories or tasks instead.
+  #
+  # First match wins — order matters. Labels are checked before types
+  # so a team can override a type-based default per ticket. Dry-run any
+  # change with `spine route --context '{...}'`.
+  reject:
+    - if: "issue_type in ['Epic', 'Épica']"
+      reason: "an Epic is a container — start one of its stories or tasks instead"
+  rules:
+    - if: "labels contains 'incidente' or labels contains 'incident' or labels contains 'hotfix'"
+      track: emergency
+    - if: "issue_type in ['Error', 'Bug'] and priority in ['1 - Crítica', 'Crítica', 'Highest']"
+      track: emergency
+    - if: "labels contains 'needs-design' or labels contains 'requiere-diseño'"
+      track: standard
+    - if: "issue_type in ['Error', 'Bug']"
+      track: fast-track
+    - if: "issue_type in ['Mejora', 'Mejoras', 'Subtarea', 'Subtarefa', 'Sub-task', 'Tarea', 'Tarea Desarrollo', 'Task']"
+      track: fast-track
+    - if: "issue_type in ['Historia', 'Story']"
+      track: standard
+    - if: "issue_type in ['Discovery', 'Análisis', 'Análisis Técnico', 'Spike', 'Design']"
+      track: spike
+    - if: "issue_type in ['Test Case', '[QA - Certificación]', 'Revisión', 'Tarea Operativa']"
+      track: fast-track

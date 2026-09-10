@@ -1,0 +1,198 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "scope.v1.json",
+  "title": "scope.md frontmatter",
+  "description": "Schema for the frontmatter of scope.md, the canonical gating artifact for the define phase. Validated by the gate engine before define can be marked complete.",
+  "type": "object",
+  "required": [
+    "id",
+    "cycle",
+    "title",
+    "business_case",
+    "mvp_scope",
+    "success_metrics",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Ticket id this scope traces back to \u2014 must match the id on the intent.md it was drafted from"
+    },
+    "cycle": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "business_case": {
+      "type": "string",
+      "description": "Why this is worth doing \u2014 the value/ROI case. Pulled from the source PRD/RFC when one is linked (intent.md's source_docs), not invented."
+    },
+    "mvp_scope": {
+      "type": "object",
+      "required": [
+        "in_scope",
+        "out_of_scope"
+      ],
+      "properties": {
+        "in_scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "out_of_scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Explicitly excluded, not just unmentioned \u2014 this is what keeps define's scope from silently ballooning back into what plan already rejected"
+        }
+      }
+    },
+    "success_metrics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Measurable definitions of success \u2014 checked against production outcomes after launch, via this client's own observability tooling rather than a dedicated measure phase in this PDLC"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Other systems, teams, or tickets this scope depends on"
+    },
+    "impact_assessment": {
+      "type": "string",
+      "default": "",
+      "description": "Who/what is affected \u2014 blast radius across systems, teams, customers"
+    },
+    "concept_prototyping": {
+      "type": "string",
+      "default": "",
+      "description": "Summary of any concept prototyping / value testing already done (by the client's own product process) \u2014 link out rather than re-describe if it lives elsewhere. Leave empty, don't fabricate, when none was done for a change this small."
+    },
+    "event_storming": {
+      "type": "string",
+      "default": "",
+      "description": "Summary or link to event-storming output (domain events/commands/aggregates) when the change is complex enough to warrant it. Leave empty for straightforward changes \u2014 not every ticket needs domain modeling."
+    },
+    "feature_prioritization": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "feature",
+          "priority"
+        ],
+        "properties": {
+          "feature": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "must",
+              "should",
+              "could",
+              "wont"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          }
+        }
+      },
+      "default": [],
+      "description": "MoSCoW-style breakdown \u2014 mainly relevant when an epic covers multiple features/stories being prioritized against each other"
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Anything this schema wants that the source intent.md / linked PRD-RFC didn't have. Must be empty, or explicitly waived, before design can close."
+    },
+    "source_docs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Carried forward from intent.md \u2014 the PRD/RFC this scope was actually derived from, if any"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Required when status is approved \u2014 must be the product owner (phase-graph.yaml's approval role for define), and distinct from the author when enforce_segregation_of_duties is on"
+    },
+    "approval_evidence": {
+      "type": "string",
+      "description": "Required when status is approved (require_approval_evidence in phase-graph.yaml) \u2014 a link to the Jira comment/Slack message/email where the product owner actually approved this, since they typically have no git/GitHub/Cursor/Claude access to approve it there directly."
+    },
+    "approvals": {
+      "type": "array",
+      "description": "One entry per approving role. Only needed when this artifact's gate asks for more than one signature (a quorum or tier strategy in .pdlc/phase-graph.yaml). A single-approver gate keeps using status/approved_by/approval_evidence. Every entry needs its own evidence link when require_approval_evidence is on \u2014 one link does not cover two people.",
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "status"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "The approval role named by this gate in .pdlc/phase-graph.yaml, e.g. product_owner. An entry for a role the gate did not ask for does not count toward it."
+          },
+          "by": {
+            "type": "string",
+            "description": "The person who decided. Required when status is approved."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "declined",
+              "pending"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Link to where this person actually approved or declined \u2014 the Jira comment, Slack message or change record."
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "status": {
+        "const": "approved"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "approved_by",
+      "approval_evidence"
+    ]
+  }
+}
