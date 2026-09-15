@@ -2,14 +2,14 @@
 id: PDLC-15
 cycle: 1
 title: GET /pet/findByStatus acepta status inválidos y responde 200
-pr_link: "[PENDING — branch pdlc/PDLC-15 not on origin; git-guard blocked push to public jcgamezl/openapi-petstore]"
+pr_link: "https://github.com/jcgamezl/openapi-petstore/pull/8"
 review_summary: >
   code-review, java-conventions (inferred; stacks-for named none),
   unit-test-writer and security reviewed 41f0599...d279483. First-pass
   blocking items (Surefire skipping *IT, empty tokens → 200, missing
   path in 400 JSON, JDK 8-unsafe --add-opens) were fixed on d279483.
-  mvn -B test: 6/6 green. Remaining: spec metrics not emitted (plan
-  waived to CI), global ResponseStatusException handler, PR not opened.
+  mvn -B test: 6/6 green.   Remaining: spec metrics not emitted (plan
+  waived to CI), global ResponseStatusException handler.
 rollout_plan: >
   [PENDING — no application deploy pipeline in this repo; only
   .github/workflows/pdlc-gate-check.yml on pull_request/push to
@@ -41,10 +41,6 @@ verification: >
   plan waived to CI; listed in open_questions. Dashboards/SLO: none in
   repo; watch window [PENDING].
 open_questions:
-  - >
-    PR not on GitHub. git-guard blocked push because the repo is public.
-    Release manager cannot click pr_link until a human pushes
-    pdlc/PDLC-15 (or git-guard is adjusted).
   - >
     Spec observability counters and reject INFO log were not implemented;
     plan.md waived them (verification MVP = CI). Release manager waives
@@ -83,8 +79,9 @@ Launch gate for PDLC-15. Release manager approval recorded from Jira comment 101
 See `review-summary.md`. Blocking items from the first pass are fixed on
 `d279483`. Nothing in this draft recommends approve or reject.
 
-### What the release manager still needs
+### What remains for the release manager
 
-1. A public PR URL in `pr_link` (push is currently blocked locally).
-2. A decision on the waived metrics.
-3. Owner / RTO / trigger numbers, or an explicit waiver of those `[PENDING]` fields.
+1. A decision on the waived metrics.
+2. Owner / RTO / trigger numbers, or an explicit waiver of those `[PENDING]` fields.
+
+PR: https://github.com/jcgamezl/openapi-petstore/pull/8
