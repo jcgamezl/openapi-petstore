@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "release.v1.json",
+  "title": "release.md frontmatter",
+  "description": "Schema for the frontmatter of release.md, the canonical gating artifact for the launch phase \u2014 the last gate in this client's phase-graph, and the only required exit artifact of `launch`. Drafted by pr-review from its synthesized multi-agent review; approved by the release manager, never by the agent that drafted it. Clearing this gate is the end of a ticket's lifecycle here (there is no measure phase and no loop back to plan).",
+  "type": "object",
+  "required": [
+    "id",
+    "cycle",
+    "title",
+    "pr_link",
+    "review_summary",
+    "rollout_plan",
+    "rollback_plan",
+    "verification",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Ticket id this release traces back to \u2014 must match the id on the plan.md it was built from, and the ticket id recorded in the ticket's phase-state.json. An artifact carrying another ticket's id never satisfies this gate."
+    },
+    "cycle": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Always 1 in this client's phase-graph \u2014 there is no loop-back phase, so nothing ever seeds a cycle 2. Set it to 1; don't try to derive it."
+    },
+    "title": {
+      "type": "string"
+    },
+    "pr_link": {
+      "type": "string",
+      "description": "Link to the pull request this release covers. This is what makes the artifact auditable after the fact \u2014 the release manager approving it needs to be able to reach the actual diff, and so does whoever reads this in six months."
+    },
+    "review_summary": {
+      "type": "string",
+      "description": "The synthesized, deduped, severity-ranked result of the pr-review pass \u2014 which discipline reviewers ran, what they flagged, and what is blocking versus advisory. A summary here, the full findings in the body. Never a claim that the change was approved: pr-review synthesizes, the release manager decides."
+    },
+    "rollout_plan": {
+      "type": "string",
+      "description": "How this actually reaches production \u2014 all at once, behind a flag, staged by cohort/region, with which prerequisite migrations or config changes in which order."
+    },
+    "rollback_plan": {
+      "type": "string",
+      "description": "How this gets undone if it goes wrong, and how fast. A config flag flip and a revert-and-redeploy are very different answers; say which one this is. Anything touching production data, money movement, or a shared system needs a real answer here, not a formality."
+    },
+    "verification": {
+      "type": "string",
+      "description": "How launch success is actually checked once this is out \u2014 which dashboards, alerts, metrics or manual checks, over what window, and what result would mean this needs rolling back. This client has no measure phase; their own observability tooling covers what comes after, so this field is where the ticket says what to point it at."
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Anything unresolved before this can ship. Must be empty, or explicitly waived by the release manager, before launch can close."
+    },
+    "source_docs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Carried forward from plan.md (and through it from spec.md/scope.md/intent.md) \u2014 the PRD/RFC this release traces back to, if any"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Required when status is approved \u2014 the release manager (phase-graph.yaml's approval role for launch), distinct from the author when enforce_segregation_of_duties is on. pr-review drafts this artifact and must never fill this field in itself."
+    },
+    "approval_evidence": {
+      "type": "string",
+      "description": "Required when status is approved (require_approval_evidence in phase-graph.yaml) \u2014 a link to the Jira comment/Slack message/email/change-record where the release manager actually approved this. A release manager typically approves in a change-management system, not in git; this is what ties approved_by to a real, checkable event."
+    },
+    "approvals": {
+      "type": "array",
+      "description": "One entry per approving role. Only needed when this artifact's gate asks for more than one signature (a quorum or tier strategy in .pdlc/phase-graph.yaml). A single-approver gate keeps using status/approved_by/approval_evidence. Every entry needs its own evidence link when require_approval_evidence is on \u2014 one link does not cover two people.",
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "status"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "The approval role named by this gate in .pdlc/phase-graph.yaml, e.g. product_owner. An entry for a role the gate did not ask for does not count toward it."
+          },
+          "by": {
+            "type": "string",
+            "description": "The person who decided. Required when status is approved."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "declined",
+              "pending"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Link to where this person actually approved or declined \u2014 the Jira comment, Slack message or change record."
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "status": {
+        "const": "approved"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "approved_by",
+      "approval_evidence"
+    ]
+  }
+}

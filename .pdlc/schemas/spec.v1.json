@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "spec.v1.json",
+  "title": "spec.md frontmatter",
+  "description": "Schema for the frontmatter of spec.md, the canonical gating artifact for the design phase. Validated by the gate engine before design can be marked complete. Deliberately one artifact, one approver \u2014 the AI-native SDLC playbook collapses requirements and design into a single session, and splitting this into separate UX/technical artifacts with separate approvers was considered and rejected as unnecessary complexity for this client.",
+  "type": "object",
+  "required": [
+    "id",
+    "cycle",
+    "title",
+    "sections_included",
+    "technical_architecture",
+    "handoff_documentation",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Ticket id this spec traces back to \u2014 must match the id on the scope.md it was drafted from"
+    },
+    "cycle": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "sections_included": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "user_cases_mapping",
+          "content_design",
+          "information_architecture",
+          "wireframing",
+          "design_critique",
+          "technical_discovery",
+          "design_system_component_mapping",
+          "high_fidelity_design",
+          "handoff_documentation",
+          "prototyping",
+          "usability_testing",
+          "mocks_and_test_data",
+          "security_design",
+          "observability",
+          "api_contract",
+          "domain_model",
+          "architecture_decisions"
+        ]
+      },
+      "description": "Which of the design flow's activities actually happened for this ticket, and are written up in the body below. This is the explicit, auditable record of a judgment call (mostly relevant for brownfield tickets touching an existing surface, where most of the greenfield-shaped activities genuinely don't apply) \u2014 not every ticket needs every section, but which ones were skipped and which weren't should never be silently implicit. The last five values close a gap the legacy-kit audit found: the original enum was UX-only, so a design phase for a bank had no slot for threat modeling, for what the change will emit operationally, for the API contract it changes, for the domain it models, or for the architectural decisions it commits to. They stay optional and conditional \u2014 see spec-writer's SKILL.md for when each one genuinely applies."
+    },
+    "technical_architecture": {
+      "type": "string",
+      "description": "Summary of the technical decisions this spec makes \u2014 always required, even briefly, since this is what develop actually implements against. Full detail belongs in the body; this is what a reviewer sees first."
+    },
+    "handoff_documentation": {
+      "type": "string",
+      "description": "Summary of states/properties/tokens/behaviors handed to engineering \u2014 always required, same reason as technical_architecture. This is the one section develop cannot proceed without, regardless of how much of the rest of the flow applied."
+    },
+    "new_components_created": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "New design-system components introduced by this ticket, if any \u2014 kept structured (not buried in prose) since design-system governance needs to be able to find these across every spec.md without re-reading each one."
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Anything unresolved before develop should start. Must be empty, or explicitly waived, before develop can close."
+    },
+    "source_docs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Carried forward from scope.md/intent.md \u2014 the PRD/RFC this spec traces back to, if any"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Required when status is approved \u2014 the engineering lead (phase-graph.yaml's approval role for design), distinct from the author when enforce_segregation_of_duties is on"
+    },
+    "approval_evidence": {
+      "type": "string",
+      "description": "Required when status is approved (require_approval_evidence in phase-graph.yaml) \u2014 a link to where the engineering lead actually approved this (a PR review comment, a Slack thread), not just a name in approved_by."
+    },
+    "approvals": {
+      "type": "array",
+      "description": "One entry per approving role. Only needed when this artifact's gate asks for more than one signature (a quorum or tier strategy in .pdlc/phase-graph.yaml). A single-approver gate keeps using status/approved_by/approval_evidence. Every entry needs its own evidence link when require_approval_evidence is on \u2014 one link does not cover two people.",
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "status"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "The approval role named by this gate in .pdlc/phase-graph.yaml, e.g. product_owner. An entry for a role the gate did not ask for does not count toward it."
+          },
+          "by": {
+            "type": "string",
+            "description": "The person who decided. Required when status is approved."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "declined",
+              "pending"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Link to where this person actually approved or declined \u2014 the Jira comment, Slack message or change record."
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "status": {
+        "const": "approved"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "approved_by",
+      "approval_evidence"
+    ]
+  }
+}

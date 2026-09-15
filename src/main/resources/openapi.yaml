@@ -96,7 +96,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/Pet'
         400:
-          description: Invalid status value
+          description: Invalid status value. Any token outside available, pending, sold (including mixed lists) returns 400 for the whole request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
       security:
       - petstore_auth:
         - write:pets
@@ -750,6 +754,21 @@ components:
         status: available
       xml:
         name: Pet
+    ValidationError:
+      type: object
+      description: Spring Boot 2 default error JSON for a 400 on findByStatus
+      properties:
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        timestamp:
+          type: string
     ApiResponse:
       title: An uploaded response
       type: object

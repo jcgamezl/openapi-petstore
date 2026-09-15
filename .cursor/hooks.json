@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "node .cursor/hooks/unit-test-writer-check-tests-before-commit.js",
+        "type": "command",
+        "failClosed": false
+      },
+      {
+        "command": "node .cursor/hooks/deploy-gate-check-gate-before-deploy.js",
+        "type": "command",
+        "failClosed": true
+      }
+    ]
+  }
+}

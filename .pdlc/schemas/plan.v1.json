@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "plan.v1.json",
+  "title": "plan.md frontmatter",
+  "description": "Schema for the frontmatter of plan.md, the canonical gating artifact for the develop phase. Validated by the gate engine before develop can be marked complete. Matches the AI-native SDLC playbook's 'Build' step: a plan is written and approved BEFORE implementation, not as a retrospective summary of code already written.",
+  "type": "object",
+  "required": [
+    "id",
+    "cycle",
+    "title",
+    "implementation_steps",
+    "test_strategy",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Ticket id this plan traces back to \u2014 must match the id on the spec.md it was drafted from"
+    },
+    "cycle": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "implementation_steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ordered, concrete steps \u2014 what actually gets built and in what order. Written before coding starts; the point of plan mode is reviewing the approach, not narrating what already happened."
+    },
+    "touched_systems": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Carried/refined from spec.md's technical_architecture \u2014 kept structured here too since develop is where a change's actual blast radius (relevant to escalation checking) becomes concrete."
+    },
+    "test_strategy": {
+      "type": "string",
+      "description": "What gets tested and how \u2014 always required. unit-test-writer's check-tests-before-commit.js hook enforces that tests are actually staged before any commit regardless of this field, but this is the declared intent a reviewer checks against, not a substitute for the hook."
+    },
+    "risks_and_rollback": {
+      "type": "string",
+      "default": "",
+      "description": "What could go wrong and how to roll back if it does. Not optional in spirit for anything touching production data or money movement \u2014 left as a default-empty string rather than required so a genuinely low-risk change doesn't have to pad this out, but an empty value on a real risk should be caught in review, not silently accepted."
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Anything unresolved before implementation should start. Must be empty, or explicitly waived, before develop can close."
+    },
+    "source_docs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Carried forward from spec.md \u2014 the PRD/RFC this plan traces back to, if any"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ]
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Required when status is approved \u2014 the engineering lead (phase-graph.yaml's approval role for develop), distinct from the author when enforce_segregation_of_duties is on"
+    },
+    "approval_evidence": {
+      "type": "string",
+      "description": "Required when status is approved (require_approval_evidence in phase-graph.yaml) \u2014 a link to where the engineering lead actually approved this plan, not just a name in approved_by."
+    },
+    "approvals": {
+      "type": "array",
+      "description": "One entry per approving role. Only needed when this artifact's gate asks for more than one signature (a quorum or tier strategy in .pdlc/phase-graph.yaml). A single-approver gate keeps using status/approved_by/approval_evidence. Every entry needs its own evidence link when require_approval_evidence is on \u2014 one link does not cover two people.",
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "status"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "The approval role named by this gate in .pdlc/phase-graph.yaml, e.g. product_owner. An entry for a role the gate did not ask for does not count toward it."
+          },
+          "by": {
+            "type": "string",
+            "description": "The person who decided. Required when status is approved."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "declined",
+              "pending"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Link to where this person actually approved or declined \u2014 the Jira comment, Slack message or change record."
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "status": {
+        "const": "approved"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "approved_by",
+      "approval_evidence"
+    ]
+  }
+}

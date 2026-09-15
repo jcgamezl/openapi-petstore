@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "module.schema.json",
+  "title": "module.yaml manifest",
+  "description": "Every module — skill, agent, connector, gate, or wrapped legacy tool — ships this manifest regardless of what's inside it. See architecture plan §03.",
+  "type": "object",
+  "required": ["id", "kind", "tool_compat"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "phase": {
+      "type": "string",
+      "description": "Which phase in phase-graph.yaml this module fills a capability slot in. Omit together with capability for a shared module — a standing capability (e.g. a client's own stack-specific agent) available in every session, not bound to any one phase's gate."
+    },
+    "capability": {
+      "type": "string",
+      "description": "The abstract slot this module fills, referenced from registry.yaml. Omit together with phase for a shared module."
+    },
+    "description": {
+      "type": "string",
+      "description": "Free-text description, used in the compiled agent/rule frontmatter when there's no phase/capability to derive one from. Mainly relevant for shared modules."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["skill", "agent", "connector", "gate", "router", "human"]
+    },
+    "tool_compat": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["claude", "cursor", "ci"] },
+      "minItems": 1
+    },
+    "model_tier": {
+      "type": "string",
+      "enum": ["haiku", "sonnet", "opus"],
+      "description": "Cost lever — route mechanical modules cheap, judgment-heavy modules to the top tier. See architecture plan §09."
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "type": "string", "enum": ["trigger", "artifact", "document"] },
+          "source": { "type": "string" },
+          "artifact": { "type": "string" }
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["artifact"],
+        "properties": {
+          "artifact": { "type": "string" },
+          "schema": { "type": "string" }
+        }
+      }
+    },
+    "owner": { "type": "string", "description": "Team or channel accountable for this module" },
+    "source_of_truth": { "type": "string", "description": "Which external system wins on conflict, e.g. jira" },
+    "hooks": {
+      "type": "array",
+      "description": "Explicit tool->event bindings for scripts in hooks/. Claude Code and Cursor use different event names/granularity (PreToolUse+matcher vs. beforeShellExecution, etc.) so the binding is declared here rather than inferred from a filename.",
+      "items": {
+        "type": "object",
+        "required": ["script"],
+        "properties": {
+          "script": { "type": "string", "description": "Filename under this module's hooks/ directory" },
+          "claude_event": { "type": "string", "description": "e.g. PreToolUse, PostToolUse, Stop, SessionStart" },
+          "claude_matcher": { "type": "string", "description": "e.g. Bash, Edit|Write — required if claude_event is set" },
+          "cursor_event": { "type": "string", "description": "e.g. beforeShellExecution, afterFileEdit" },
+          "cursor_fail_closed": {
+            "type": "boolean",
+            "default": false,
+            "description": "Cursor's failClosed for this hook: true means a crash/timeout in the script BLOCKS the action. Only set it on hooks that are fail-closed by design (deploy-gate); a fail-open enforcement nudge (unit-test-writer) must leave it false, or a bug in the script blocks every shell command in Cursor."
+          }
+        }
+      }
+    },
+    "always_apply": {
+      "type": "boolean",
+      "default": false,
+      "description": "Compiled to Cursor's alwaysApply: true — the rule is always active regardless of the model's relevance judgment on the description. Use for policy-critical content (compliance, security) where 'probably gets auto-activated' isn't a strong enough guarantee. Most modules should leave this false and rely on a specific description instead."
+    }
+  }
+}
