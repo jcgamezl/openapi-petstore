@@ -64,10 +64,12 @@ source_docs:
   - pdlc/PDLC-15/scope.md
   - pdlc/PDLC-15/plan.md
   - pdlc/PDLC-15/review-summary.md
-status: draft
+status: approved
+approved_by: Juan Carlos Gamez Lozano
+approval_evidence: "https://demoday-agentic.atlassian.net/browse/PDLC-15?focusedCommentId=10110"
 ---
 
-Launch gate draft for PDLC-15. Not approved.
+Launch gate for PDLC-15. Release manager approval recorded from Jira comment 10110 (words: «aprobado»).
 
 ### Reviewers
 
