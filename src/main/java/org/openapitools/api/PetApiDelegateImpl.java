@@ -83,9 +83,13 @@ public class PetApiDelegateImpl implements PetApiDelegate {
     @Override
     public ResponseEntity<List<Pet>> findPetsByStatus(List<String> statusList) {
         List<Pet.StatusEnum> statusEnums = statusList.stream()
+                .flatMap(raw -> Arrays.stream(raw.split(",")))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
                 .map(s -> Optional.ofNullable(Pet.StatusEnum.fromValue(s))
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + s))
-                )
+                        .orElseThrow(() -> new ResponseStatusException(
+                                HttpStatus.BAD_REQUEST,
+                                "Invalid status value. Allowed: available, pending, sold")))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(petRepository.findPetsByStatus(statusEnums));
     }
