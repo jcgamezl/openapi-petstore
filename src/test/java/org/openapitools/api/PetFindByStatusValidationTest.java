@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RunWith(SpringRunner.class)
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-public class PetFindByStatusValidationIT {
+public class PetFindByStatusValidationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -42,6 +42,7 @@ public class PetFindByStatusValidationIT {
                         containsString("available"),
                         containsString("pending"),
                         containsString("sold"))))
+                .andExpect(jsonPath("$.path", containsString("/pet/findByStatus")))
                 .andExpect(jsonPath("$.trace").doesNotExist())
                 .andExpect(jsonPath("$.exception").doesNotExist());
     }
@@ -74,5 +75,14 @@ public class PetFindByStatusValidationIT {
                         .param("status", "available, pending"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    public void emptyStatusToken_returns400() throws Exception {
+        mockMvc.perform(get("/v3/pet/findByStatus")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .param("status", "available,"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("available")));
     }
 }

@@ -85,7 +85,6 @@ public class PetApiDelegateImpl implements PetApiDelegate {
         List<Pet.StatusEnum> statusEnums = statusList.stream()
                 .flatMap(raw -> Arrays.stream(raw.split(",")))
                 .map(String::trim)
-                .filter(s -> !s.isEmpty())
                 .map(s -> Optional.ofNullable(Pet.StatusEnum.fromValue(s))
                         .orElseThrow(() -> new ResponseStatusException(
                                 HttpStatus.BAD_REQUEST,
